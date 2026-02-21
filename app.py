@@ -7,7 +7,7 @@ import random
 from duckduckgo_search import DDGS
 
 st.set_page_config(page_title="Re-Use Fassaden-Generator", layout="wide")
-st.title("🧱 Patchwork-Fassaden-Generator V4 (Chaos & Design)")
+st.title("🧱 Patchwork-Fassaden-Generator V5 (Cluster & Frame)")
 
 # --- SESSION STATE ---
 if 'inventory' not in st.session_state: st.session_state['inventory'] = []
@@ -81,55 +81,42 @@ def pack_columns(wall_w, wall_h, items):
             y += item['h']; col_w = max(col_w, item['w'])
     return placed_items
 
-def pack_mondrian(wall_w, wall_h, items):
+def pack_mondrian_cluster(wall_w, wall_h, items):
     placed_items = []
     
-    # 1. Extremes Chaos beim Sortieren: Faktor zwischen 0.01 und 10.0!
+    # 1. Mischen und grob nach Größe sortieren (erzeugt den unregelmäßigen Mondrian-Look)
     shuffled_items = list(items)
     random.shuffle(shuffled_items) 
-    mixed_items = sorted(shuffled_items, key=lambda i: (i['w'] * i['h']) * random.uniform(0.01, 10.0), reverse=True)
+    mixed_items = sorted(shuffled_items, key=lambda i: (i['w'] * i['h']) * random.uniform(0.5, 1.5), reverse=True)
     
+    step = 50 if wall_w <= 6000 else 100
+    
+    # 2. PHASE 1: Dichtes Zusammenpacken ("Bottom-Left-Fill")
+    # Zwingt alle Fenster eng aneinander, um innere Lücken zu vermeiden.
     for item in mixed_items: 
         fitted = False
-        step = 50 if wall_w <= 6000 else 100
-        
-        # 2. PHASE 1: "SCATTER" (Streuen)
-        # Wir versuchen 100-mal, das Fenster an eine völlig zufällige Position zu werfen.
-        for _ in range(100):
-            # Verhindern von Fehlern, wenn das Fenster größer als die Wand ist
-            if wall_w <= item['w'] or wall_h <= item['h']: continue
-                
-            rx = random.randint(0, wall_w - item['w'])
-            ry = random.randint(0, wall_h - item['h'])
+        for y in range(0, wall_h - item['h'] + 1, step):
+            for x in range(0, wall_w - item['w'] + 1, step):
+                if not check_overlap(x, y, item['w'], item['h'], placed_items):
+                    placed_items.append({**item, 'x': x, 'y': y})
+                    fitted = True; break
+            if fitted: break
             
-            # Auf das 5cm/10cm Raster einrasten lassen
-            rx = (rx // step) * step
-            ry = (ry // step) * step
-
-            if not check_overlap(rx, ry, item['w'], item['h'], placed_items):
-                placed_items.append({**item, 'x': rx, 'y': ry})
-                fitted = True
-                break
-                
-        # 3. PHASE 2: "GAP FILL" (Lücken füllen)
-        # Wenn der Zufall keinen Platz gefunden hat (weil die Wand langsam voll wird),
-        # scannen wir systematisch nach der ersten freien Lücke.
-        if not fitted:
-            scan_x_first = random.choice([True, False])
-            if scan_x_first:
-                for x in range(0, wall_w - item['w'] + 1, step):
-                    for y in range(0, wall_h - item['h'] + 1, step):
-                        if not check_overlap(x, y, item['w'], item['h'], placed_items):
-                            placed_items.append({**item, 'x': x, 'y': y})
-                            fitted = True; break
-                    if fitted: break
-            else:
-                for y in range(0, wall_h - item['h'] + 1, step):
-                    for x in range(0, wall_w - item['w'] + 1, step):
-                        if not check_overlap(x, y, item['w'], item['h'], placed_items):
-                            placed_items.append({**item, 'x': x, 'y': y})
-                            fitted = True; break
-                    if fitted: break
+    # 3. PHASE 2: Zentrieren des Clusters (Der "Rahmen-Effekt")
+    if placed_items:
+        # Finde die äußersten Kanten des entstandenen Clusters
+        max_x = max(p['x'] + p['w'] for p in placed_items)
+        max_y = max(p['y'] + p['h'] for p in placed_items)
+        
+        # Berechne den Abstand, um den Cluster exakt in die Mitte zu schieben
+        offset_x = (wall_w - max_x) // 2
+        offset_y = (wall_h - max_y) // 2
+        
+        # Schiebe alle Fenster um diesen Offset
+        for p in placed_items:
+            p['x'] += offset_x
+            p['y'] += offset_y
+            
     return placed_items
 
 # --- UI: SIDEBAR ---
@@ -170,22 +157,21 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         wall_height = st.slider("Höhe (mm)", 1000, 12000, 3000, 100)
         
         st.subheader("Architektur-Stil")
-        algo_choice = st.selectbox("Anordnung:", ["Mondrian-Style (Verschachtelt)", "Shelf-Packing (Reihen)", "Säulen-System (Spalten)"])
+        algo_choice = st.selectbox("Anordnung:", ["Mondrian-Cluster (Zentriert)", "Shelf-Packing (Reihen)", "Säulen-System (Spalten)"])
         
-        # NEU: Ein Button, um das Chaos neu zu würfeln!
-        if algo_choice == "Mondrian-Style (Verschachtelt)":
-            if st.button("🎲 Neues Layout würfeln"):
-                pass # Ein Klick lädt Streamlit neu und generiert ein frisches Random-Layout
+        if algo_choice == "Mondrian-Cluster (Zentriert)":
+            if st.button("🎲 Neues Cluster würfeln"):
+                pass 
 
     with col2:
-        if algo_choice == "Mondrian-Style (Verschachtelt)": placed = pack_mondrian(wall_width, wall_height, total_inventory)
+        if algo_choice == "Mondrian-Cluster (Zentriert)": placed = pack_mondrian_cluster(wall_width, wall_height, total_inventory)
         elif algo_choice == "Shelf-Packing (Reihen)": placed = pack_shelf(wall_width, wall_height, total_inventory)
         else: placed = pack_columns(wall_width, wall_height, total_inventory)
             
         fig, ax = plt.subplots(figsize=(12, 8)) 
         ax.add_patch(patches.Rectangle((0, 0), wall_width, wall_height, facecolor='#ffcccc', hatch='//', edgecolor='red'))
         
-        line_weight = 4 if algo_choice == "Mondrian-Style (Verschachtelt)" else 2
+        line_weight = 4 if algo_choice == "Mondrian-Cluster (Zentriert)" else 2
         used_area = 0
         
         for item in placed:
@@ -201,7 +187,7 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         st.pyplot(fig)
         
         total_area = wall_width * wall_height
-        st.info(f"Füllgrad: **{int((used_area/total_area)*100)}%** | Benötigtes Füllmaterial (rot): **{((total_area - used_area)/1000000):.2f} m²**")
+        st.info(f"Füllgrad: **{int((used_area/total_area)*100)}%** | Rahmen/Füllmaterial (rot): **{((total_area - used_area)/1000000):.2f} m²**")
 
     # --- MATRIX ---
     st.subheader("📋 Beschaffungs-Matrix")
