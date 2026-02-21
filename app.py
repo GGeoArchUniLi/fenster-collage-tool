@@ -8,18 +8,18 @@ import random
 import uuid
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="Patchwork Facade Generator v0.9", layout="wide")
+st.set_page_config(page_title="Patchwork Facade Generator v1.0", layout="wide")
 
 # --- SPRACH-WÖRTERBUCH ---
 LANG_DICT = {
-    "🇩🇪 DE": {"title": "🧱 Patchwork-Fassaden-Generator v0.9", "search": "🔍 Marktplätze durchsuchen", "wall": "Wandöffnung", "matrix": "📋 Beschaffungs-Matrix & Layout", "fill": "Zuschnitt"},
-    "🇬🇧 EN": {"title": "🧱 Patchwork Facade Generator v0.9", "search": "🔍 Search marketplaces", "wall": "Wall Opening", "matrix": "📋 Procurement Matrix & Layout", "fill": "Filler Panel"},
-    "🇫🇷 FR": {"title": "🧱 Générateur de Façade v0.9", "search": "🔍 Chercher les marchés", "wall": "Ouverture du mur", "matrix": "📋 Matrice d'approvisionnement", "fill": "Panneau de remplissage"},
-    "🇮🇹 IT": {"title": "🧱 Generatore di Facciate v0.9", "search": "🔍 Cerca mercati", "wall": "Apertura del muro", "matrix": "📋 Matrice di approvvigionamento", "fill": "Pannello di riempimento"},
-    "🇨🇭 RM": {"title": "🧱 Generatur da Façadas v0.9", "search": "🔍 Tschertgar martgads", "wall": "Avertura da paraid", "matrix": "📋 Matrix da material", "fill": "Panel da rimplazzar"},
-    "🇧🇬 BG": {"title": "🧱 Генератор на фасади v0.9", "search": "🔍 Търсене в пазари", "wall": "Отвор на стената", "matrix": "📋 Матрица за доставки", "fill": "Панел за пълнеж"},
-    "🇮🇱 HE": {"title": "🧱 מחולל חזיתות טלאים v0.9", "search": "🔍 חפש בשווקים", "wall": "פתח קיר", "matrix": "📋 מטריצת רכש ופריסה", "fill": "פאנל מילוי"},
-    "🇯🇵 JA": {"title": "🧱 パッチワークファサードジェネレーター v0.9", "search": "🔍 市場を検索", "wall": "壁の開口部", "matrix": "📋 調達マトリックスとレイアウト", "fill": "フィラーパネル"}
+    "🇩🇪 DE": {"title": "🧱 Patchwork-Fassaden-Generator v1.0", "search": "🔍 Marktplätze durchsuchen", "wall": "Wandöffnung", "matrix": "📋 Fenster-Steuerung & Layout", "fill": "Zuschnitt"},
+    "🇬🇧 EN": {"title": "🧱 Patchwork Facade Generator v1.0", "search": "🔍 Search marketplaces", "wall": "Wall Opening", "matrix": "📋 Window Control & Layout", "fill": "Filler Panel"},
+    "🇫🇷 FR": {"title": "🧱 Générateur de Façade v1.0", "search": "🔍 Chercher les marchés", "wall": "Ouverture du mur", "matrix": "📋 Contrôle des fenêtres", "fill": "Panneau de remplissage"},
+    "🇮🇹 IT": {"title": "🧱 Generatore di Facciate v1.0", "search": "🔍 Cerca mercati", "wall": "Apertura del muro", "matrix": "📋 Controllo finestre", "fill": "Pannello di riempimento"},
+    "🇨🇭 RM": {"title": "🧱 Generatur da Façadas v1.0", "search": "🔍 Tschertgar martgads", "wall": "Avertura da paraid", "matrix": "📋 Control da fanestras", "fill": "Panel da rimplazzar"},
+    "🇧🇬 BG": {"title": "🧱 Генератор на фасади v1.0", "search": "🔍 Търсене в пазари", "wall": "Отвор на стената", "matrix": "📋 Управление на прозорци", "fill": "Панел за пълнеж"},
+    "🇮🇱 HE": {"title": "🧱 מחולל חזיתות טלאים v1.0", "search": "🔍 חפש בשווקים", "wall": "פתח קיר", "matrix": "📋 בקרת חלונות", "fill": "פאנל מילוי"},
+    "🇯🇵 JA": {"title": "🧱 パッチワークファサードジェネレーター v1.0", "search": "🔍 市場を検索", "wall": "壁の開口部", "matrix": "📋 ウィンドウコントロールとレイアウト", "fill": "フィラーパネル"}
 }
 
 lang_choice = st.radio("Sprache / Language:", list(LANG_DICT.keys()), horizontal=True)
@@ -57,7 +57,6 @@ def harvest_materials(land, plz, use_reuse, use_new):
                                 'price': price, 'source': res['title'][:30] + '...', 
                                 'condition': condition, 'link': res['href']
                             })
-                            # man_x und man_y für die manuelle Koordinaten-Eingabe hinzugefügt
                             st.session_state['item_states'][item_id] = {'visible': True, 'force': False, 'man_x': None, 'man_y': None}
         except Exception: pass 
             
@@ -82,16 +81,15 @@ def pack_mondrian_cluster(wall_w, wall_h, items):
     placed_items = []
     dynamic_items = []
     
-    # 1. Manuell gesetzte Fenster (Die "Drag & Drop" Alternative)
+    # 1. Manuell positionierte Fenster (X/Y)
     for item in items:
         state = st.session_state['item_states'][item['id']]
         if state.get('man_x') is not None and state.get('man_y') is not None:
-            # Fenster auf exakte Koordinaten setzen
             placed_items.append({**item, 'x': int(state['man_x']), 'y': int(state['man_y'])})
         else:
             dynamic_items.append(item)
             
-    # 2. Den Rest dynamisch drum herum packen
+    # 2. Dynamisches Packing für den Rest
     forced_items = [i for i in dynamic_items if st.session_state['item_states'][i['id']]['force']]
     normal_items = [i for i in dynamic_items if not st.session_state['item_states'][i['id']]['force']]
     
@@ -110,8 +108,7 @@ def pack_mondrian_cluster(wall_w, wall_h, items):
                     fitted = True; break
             if fitted: break
             
-    # Wir zentrieren nur, wenn keine manuellen Koordinaten vergeben wurden
-    # Ansonsten würden wir die manuellen Koordinaten verschieben!
+    # Zentrieren (nur wenn keine manuellen Koordinaten vergeben wurden)
     has_manual = any(st.session_state['item_states'][i['id']].get('man_x') is not None for i in items)
     if placed_items and not has_manual:
         max_x = max(p['x'] + p['w'] for p in placed_items)
@@ -128,7 +125,6 @@ def calculate_gaps(wall_w, wall_h, placed, step=50):
     
     for p in placed:
         px, py, pw, ph = int(p['x']//step), int(p['y']//step), int(p['w']//step), int(p['h']//step)
-        # Sicherheitscheck, damit Gaps am Rand nicht crashen
         grid[max(0, py):min(grid_h, py+ph), max(0, px):min(grid_w, px+pw)] = True
         
     gaps = []
@@ -190,9 +186,10 @@ with st.sidebar:
 if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
     total_inventory = st.session_state['custom_windows'] + st.session_state['inventory']
     
-    # GANZ WICHTIG: Liste sortieren, damit die Checkboxen beim Neuladen nicht verrutschen!
+    # Sortierung fixieren, damit die Tabelle niemals ihre Reihenfolge verliert
     total_inventory.sort(key=lambda x: x['id'])
     
+    # Pack-Algorithmus bekommt NUR Fenster, die als "visible" (Ein/Aus Haken gesetzt) markiert sind
     usable_inventory = [item for item in total_inventory if st.session_state['item_states'].get(item['id'], {}).get('visible') == True]
     
     col1, col2 = st.columns([1, 3])
@@ -206,25 +203,30 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         placed = pack_mondrian_cluster(wall_width, wall_height, usable_inventory)
         gaps = calculate_gaps(wall_width, wall_height, placed, step=50 if wall_width <= 6000 else 100)
         
+        # Stats berechnen
         total_price = sum(p['price'] for p in placed)
         wall_area_m2 = (wall_width * wall_height) / 1000000
         win_area_m2 = sum((p['w'] * p['h'])/1000000 for p in placed)
         win_pct = (win_area_m2 / wall_area_m2 * 100) if wall_area_m2 > 0 else 0
         
+        # Sidebar Stats updaten
         stats_container.markdown(f"### 💶 Fenster: **{total_price:.2f} €**")
         stats_container.markdown(f"**Wandöffnung:** {wall_area_m2:.2f} m²<br>**Fensterfläche:** {win_area_m2:.2f} m²<br>*(Füllgrad: {win_pct:.1f}%)*", unsafe_allow_html=True)
         
+        # Zeichnen
         fig, ax = plt.subplots(figsize=(12, 8)) 
         ax.add_patch(patches.Rectangle((0, 0), wall_width, wall_height, facecolor='#ffffff', edgecolor='black', linewidth=3))
         
         placed_ids = [p['id'] for p in placed]
         
+        # 1. Rote Gaps
         for g in gaps:
             ax.add_patch(patches.Rectangle((g['x'], g['y']), g['w'], g['h'], facecolor=g['color'], edgecolor='darkred', linewidth=1, alpha=0.7))
             g_area = (g['w'] * g['h']) / 1000000
             if g['w'] >= 400 and g['h'] >= 400: 
                 ax.text(g['x'] + g['w']/2, g['y'] + g['h']/2, f"{g_area:.2f} m²", ha='center', va='center', fontsize=6, color='white')
             
+        # 2. Fenster
         for i, item in enumerate(placed):
             ax.add_patch(patches.Rectangle((item['x'], item['y']), item['w'], item['h'], facecolor=item['color'], edgecolor='black', linewidth=4))
             ax.text(item['x'] + item['w']/2, item['y'] + item['h']/2, f"P{i+1}\n{item['w']}x{item['h']}", ha='center', va='center', fontsize=7, fontweight='bold')
@@ -232,11 +234,13 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         ax.set_xlim(0, max(wall_width, 4000) + 100); ax.set_ylim(0, max(wall_height, 3000) + 100)
         ax.set_aspect('equal'); plt.axis('off'); st.pyplot(fig)
 
-    # --- INTERAKTIVE MATRIX ---
+    # ==========================================
+    # --- TABELLE 1: INTERAKTIVE FENSTER ---
+    # ==========================================
     st.subheader(T["matrix"])
     st.caption("Nutze 'Manuell X/Y', um ein Fenster exakt zu positionieren (z.B. X:0, Y:0 ist unten links).")
     
-    df_data = []
+    df_win_data = []
     
     for item in total_inventory:
         state = st.session_state['item_states'].get(item['id'])
@@ -253,11 +257,11 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         else:
             status = "❌ Passt nicht"
 
-        df_data.append({
+        df_win_data.append({
             "id": item['id'],
             "👁️ Ein/Aus": state['visible'], 
-            "📍 Manuell X": state.get('man_x'), # NEU: Manuelle X Koordinate
-            "📍 Manuell Y": state.get('man_y'), # NEU: Manuelle Y Koordinate
+            "📍 Manuell X": state.get('man_x'), 
+            "📍 Manuell Y": state.get('man_y'), 
             "⭐ Zwingen": state['force'],
             "Typ": item['type'],
             "Pos": pos_label,
@@ -269,61 +273,75 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
             "Link": item['link']
         })
         
-    for g in gaps:
-        area_m2 = (g['w'] * g['h']) / 1000000
-        df_data.append({
-            "id": g['id'], "👁️ Ein/Aus": True, "📍 Manuell X": None, "📍 Manuell Y": None, "⭐ Zwingen": False, "Typ": g['type'], 
-            "Pos": "Gap", "Status": "⚠️ Benötigt", "Maße (BxH)": f"{g['w']} x {g['h']}", 
-            "Fläche (m²)": f"{area_m2:.2f}", "Herkunft": g['source'], "Preis": "-", "Link": ""
-        })
-        
-    df = pd.DataFrame(df_data)
+    df_win = pd.DataFrame(df_win_data)
     
-    def highlight_rows(row):
+    def highlight_windows(row):
         if '✅' in str(row['Status']): return ['background-color: rgba(40, 167, 69, 0.2)'] * len(row)
-        if '📌' in str(row['Status']): return ['background-color: rgba(255, 193, 7, 0.3)'] * len(row) # Gelbes Highlight für fixierte Fenster
-        if '⚠️' in str(row['Status']): return ['background-color: rgba(255, 0, 0, 0.15)'] * len(row)
+        if '📌' in str(row['Status']): return ['background-color: rgba(255, 193, 7, 0.3)'] * len(row) 
         if '🙈' in str(row['Status']): return ['background-color: rgba(128, 128, 128, 0.2); color: gray'] * len(row)
         return [''] * len(row)
         
-    styled_df = df.style.apply(highlight_rows, axis=1)
+    styled_df_win = df_win.style.apply(highlight_windows, axis=1)
     
     edited_df = st.data_editor(
-        styled_df, 
+        styled_df_win, 
         column_config={
             "id": None, 
             "👁️ Ein/Aus": st.column_config.CheckboxColumn("👁️ Layer"),
-            "📍 Manuell X": st.column_config.NumberColumn("📍 Manuell X", help="X-Position in mm (0 = ganz links)"),
-            "📍 Manuell Y": st.column_config.NumberColumn("📍 Manuell Y", help="Y-Position in mm (0 = ganz unten)"),
+            "📍 Manuell X": st.column_config.NumberColumn("📍 Manuell X"),
+            "📍 Manuell Y": st.column_config.NumberColumn("📍 Manuell Y"),
             "⭐ Zwingen": st.column_config.CheckboxColumn("⭐ Priorität"),
             "Link": st.column_config.LinkColumn("🛒 Shop", display_text="Link 🔗")
         },
         disabled=["Typ", "Pos", "Status", "Maße (BxH)", "Fläche (m²)", "Herkunft", "Preis", "Link"], 
-        hide_index=True, use_container_width=True, key="matrix_editor"
+        hide_index=True, use_container_width=True, key="windows_editor"
     )
     
     st.markdown(f"### 💶 Gesamtpreis Fenster: **{total_price:.2f} €**")
     st.markdown(f"**Gesamtfläche Fenster:** {win_area_m2:.2f} m² | **Wandfläche:** {wall_area_m2:.2f} m²")
     
+    # Eingaben der interaktiven Tabelle verarbeiten
     changes_made = False
     for idx, row in edited_df.iterrows():
         item_id = row['id']
         if item_id in st.session_state['item_states']:
             state = st.session_state['item_states'][item_id]
             
-            # Layer Bugfix: Exakte Zuweisung prüfen
-            if row['👁️ Ein/Aus'] != state['visible'] or row['⭐ Zwingen'] != state['force'] or row['📍 Manuell X'] != state['man_x'] or row['📍 Manuell Y'] != state['man_y']:
+            # Hat sich etwas geändert?
+            if (row['👁️ Ein/Aus'] != state['visible'] or 
+                row['⭐ Zwingen'] != state['force'] or 
+                row['📍 Manuell X'] != state['man_x'] or 
+                row['📍 Manuell Y'] != state['man_y']):
                 
                 state['visible'] = row['👁️ Ein/Aus']
                 state['force'] = row['⭐ Zwingen']
-                
-                # Handling für leere (NaN) Eingaben bei X/Y
                 state['man_x'] = None if pd.isna(row['📍 Manuell X']) else int(row['📍 Manuell X'])
                 state['man_y'] = None if pd.isna(row['📍 Manuell Y']) else int(row['📍 Manuell Y'])
                 
                 changes_made = True
                 
     if changes_made: st.rerun()
+
+    # ==========================================
+    # --- TABELLE 2: DIE ZUSCHNITTE (READ ONLY) ---
+    # ==========================================
+    st.divider()
+    st.subheader("🟥 Benötigte Zuschnitte (Füll-Paneele)")
+    
+    df_gaps_data = []
+    for g in gaps:
+        area_m2 = (g['w'] * g['h']) / 1000000
+        df_gaps_data.append({
+            "Typ": g['type'], 
+            "Maße (BxH)": f"{g['w']} x {g['h']} mm", 
+            "Fläche (m²)": f"{area_m2:.2f} m²", 
+            "Herkunft": g['source']
+        })
+        
+    if df_gaps_data:
+        st.dataframe(pd.DataFrame(df_gaps_data), hide_index=True, use_container_width=True)
+    else:
+        st.success("Die Wand ist perfekt gefüllt! Keine Zuschnitte benötigt.")
 
 else:
     st.info("👈 " + T["search"])
