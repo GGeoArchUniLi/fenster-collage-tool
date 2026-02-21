@@ -7,7 +7,7 @@ import random
 from duckduckgo_search import DDGS
 
 st.set_page_config(page_title="Re-Use Fassaden-Generator", layout="wide")
-st.title("🧱 Patchwork-Fassaden-Generator V3 (Pro)")
+st.title("🧱 Patchwork-Fassaden-Generator V4 (Chaos & Design)")
 
 # --- SESSION STATE ---
 if 'inventory' not in st.session_state: st.session_state['inventory'] = []
@@ -17,11 +17,8 @@ if 'is_loaded' not in st.session_state: st.session_state['is_loaded'] = False
 # --- FUNKTION: Echte Daten & Links suchen ---
 def harvest_materials(land, plz, radius, mix_new):
     materials = []
-    queries = [
-        (f"site:ebay.de OR site:kleinanzeigen.de Fenster gebraucht {plz} {land}", "Gebraucht (Re-Use)", '#4682b4')
-    ]
-    if mix_new:
-        queries.append((f"Fenster neu kaufen {plz} {land}", "Fabrikneu", '#add8e6'))
+    queries = [(f"site:ebay.de OR site:kleinanzeigen.de Fenster gebraucht {plz} {land}", "Gebraucht (Re-Use)", '#4682b4')]
+    if mix_new: queries.append((f"Fenster neu kaufen {plz} {land}", "Fabrikneu", '#add8e6'))
         
     for query, condition, color in queries:
         try:
@@ -47,17 +44,14 @@ def harvest_materials(land, plz, radius, mix_new):
             
     if len(materials) < 5:
         fallback = [
-            (1200, 1400, "Gebraucht (Re-Use)", "https://ebay.de", 85.0),
-            (2000, 2100, "Fabrikneu", "https://amazon.de", 350.0),
-            (800, 600, "Gebraucht (Re-Use)", "https://kleinanzeigen.de", 40.0),
-            (500, 1000, "Gebraucht (Re-Use)", "https://ebay.de", 30.0),
-            (1000, 500, "Fabrikneu", "https://amazon.de", 120.0)
+            (1200, 1400, "Gebraucht (Re-Use)", "https://ebay.de", 85.0), (2000, 2100, "Fabrikneu", "https://amazon.de", 350.0),
+            (800, 600, "Gebraucht (Re-Use)", "https://kleinanzeigen.de", 40.0), (500, 1000, "Gebraucht (Re-Use)", "https://ebay.de", 30.0),
+            (1000, 500, "Fabrikneu", "https://amazon.de", 120.0), (600, 600, "Gebraucht (Re-Use)", "https://ebay.de", 25.0)
         ]
-        for w, h, cond, lnk, pr in fallback * 6: # Mehr Dummy-Daten für große Wände
+        for w, h, cond, lnk, pr in fallback * 6:
             if not mix_new and cond == "Fabrikneu": continue
             col = '#add8e6' if cond == "Fabrikneu" else '#4682b4'
             materials.append({'w': w, 'h': h, 'type': 'Fenster', 'color': col, 'label': f'F ({cond[:3]})', 'price': pr, 'source': 'Notfall-Reserve', 'condition': cond, 'link': lnk})
-            
     return materials
 
 # --- ALGORITHMEN ---
@@ -90,34 +84,52 @@ def pack_columns(wall_w, wall_h, items):
 def pack_mondrian(wall_w, wall_h, items):
     placed_items = []
     
-    # 1. Rauschen hinzufügen: Wir sortieren primär nach Größe, multiplizieren aber 
-    # mit einem Zufallswert (0.5 bis 1.5). So drängen sich kleine Elemente auch mal nach vorne!
+    # 1. Extremes Chaos beim Sortieren: Faktor zwischen 0.01 und 10.0!
     shuffled_items = list(items)
-    random.shuffle(shuffled_items) # Vorher mischen
-    mixed_items = sorted(shuffled_items, key=lambda i: (i['w'] * i['h']) * random.uniform(0.5, 1.5), reverse=True)
+    random.shuffle(shuffled_items) 
+    mixed_items = sorted(shuffled_items, key=lambda i: (i['w'] * i['h']) * random.uniform(0.01, 10.0), reverse=True)
     
     for item in mixed_items: 
         fitted = False
         step = 50 if wall_w <= 6000 else 100
         
-        # 2. Wechselnde Scan-Richtung: 50% Chance, ob er zuerst x oder zuerst y absucht.
-        # Das bricht die Symmetrie brutal auf und erzeugt den echten Mondrian-Look.
-        scan_x_first = random.choice([True, False])
-        
-        if scan_x_first:
-            for x in range(0, wall_w - item['w'] + 1, step):
-                for y in range(0, wall_h - item['h'] + 1, step):
-                    if not check_overlap(x, y, item['w'], item['h'], placed_items):
-                        placed_items.append({**item, 'x': x, 'y': y})
-                        fitted = True; break
-                if fitted: break
-        else:
-            for y in range(0, wall_h - item['h'] + 1, step):
+        # 2. PHASE 1: "SCATTER" (Streuen)
+        # Wir versuchen 100-mal, das Fenster an eine völlig zufällige Position zu werfen.
+        for _ in range(100):
+            # Verhindern von Fehlern, wenn das Fenster größer als die Wand ist
+            if wall_w <= item['w'] or wall_h <= item['h']: continue
+                
+            rx = random.randint(0, wall_w - item['w'])
+            ry = random.randint(0, wall_h - item['h'])
+            
+            # Auf das 5cm/10cm Raster einrasten lassen
+            rx = (rx // step) * step
+            ry = (ry // step) * step
+
+            if not check_overlap(rx, ry, item['w'], item['h'], placed_items):
+                placed_items.append({**item, 'x': rx, 'y': ry})
+                fitted = True
+                break
+                
+        # 3. PHASE 2: "GAP FILL" (Lücken füllen)
+        # Wenn der Zufall keinen Platz gefunden hat (weil die Wand langsam voll wird),
+        # scannen wir systematisch nach der ersten freien Lücke.
+        if not fitted:
+            scan_x_first = random.choice([True, False])
+            if scan_x_first:
                 for x in range(0, wall_w - item['w'] + 1, step):
-                    if not check_overlap(x, y, item['w'], item['h'], placed_items):
-                        placed_items.append({**item, 'x': x, 'y': y})
-                        fitted = True; break
-                if fitted: break
+                    for y in range(0, wall_h - item['h'] + 1, step):
+                        if not check_overlap(x, y, item['w'], item['h'], placed_items):
+                            placed_items.append({**item, 'x': x, 'y': y})
+                            fitted = True; break
+                    if fitted: break
+            else:
+                for y in range(0, wall_h - item['h'] + 1, step):
+                    for x in range(0, wall_w - item['w'] + 1, step):
+                        if not check_overlap(x, y, item['w'], item['h'], placed_items):
+                            placed_items.append({**item, 'x': x, 'y': y})
+                            fitted = True; break
+                    if fitted: break
     return placed_items
 
 # --- UI: SIDEBAR ---
@@ -159,6 +171,11 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         
         st.subheader("Architektur-Stil")
         algo_choice = st.selectbox("Anordnung:", ["Mondrian-Style (Verschachtelt)", "Shelf-Packing (Reihen)", "Säulen-System (Spalten)"])
+        
+        # NEU: Ein Button, um das Chaos neu zu würfeln!
+        if algo_choice == "Mondrian-Style (Verschachtelt)":
+            if st.button("🎲 Neues Layout würfeln"):
+                pass # Ein Klick lädt Streamlit neu und generiert ein frisches Random-Layout
 
     with col2:
         if algo_choice == "Mondrian-Style (Verschachtelt)": placed = pack_mondrian(wall_width, wall_height, total_inventory)
@@ -168,10 +185,9 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         fig, ax = plt.subplots(figsize=(12, 8)) 
         ax.add_patch(patches.Rectangle((0, 0), wall_width, wall_height, facecolor='#ffcccc', hatch='//', edgecolor='red'))
         
-        # 3. Design-Anpassung für die Linien-Dicke
         line_weight = 4 if algo_choice == "Mondrian-Style (Verschachtelt)" else 2
-        
         used_area = 0
+        
         for item in placed:
             ax.add_patch(patches.Rectangle((item['x'], item['y']), item['w'], item['h'], facecolor=item['color'], edgecolor='black', linewidth=line_weight))
             font_size = 6 if wall_width > 6000 else 8
