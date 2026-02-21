@@ -8,17 +8,21 @@ import random
 import uuid
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="Patchwork Facade Generator", layout="wide")
+st.set_page_config(page_title="Patchwork Facade Generator v0.8", layout="wide")
 
-# --- SPRACH-WÖRTERBUCH ---
+# --- SPRACH-WÖRTERBUCH (KOMPLETT) ---
 LANG_DICT = {
-    "🇩🇪 DE": {"title": "🧱 Patchwork-Fassaden-Generator", "search": "🔍 Marktplätze durchsuchen", "wall": "Wandöffnung", "matrix": "📋 Beschaffungs-Matrix & Layout", "fill": "Zuschnitt"},
-    "🇬🇧 EN": {"title": "🧱 Patchwork Facade Generator", "search": "🔍 Search marketplaces", "wall": "Wall Opening", "matrix": "📋 Procurement Matrix & Layout", "fill": "Filler Panel"},
-    "🇫🇷 FR": {"title": "🧱 Générateur de Façade", "search": "🔍 Chercher les marchés", "wall": "Ouverture du mur", "matrix": "📋 Matrice d'approvisionnement", "fill": "Panneau de remplissage"}
-    # Weitere Sprachen hier gekürzt, um den Code kompakt zu halten
+    "🇩🇪 DE": {"title": "🧱 Patchwork-Fassaden-Generator v0.8", "search": "🔍 Marktplätze durchsuchen", "wall": "Wandöffnung", "matrix": "📋 Beschaffungs-Matrix & Layout", "fill": "Zuschnitt"},
+    "🇬🇧 EN": {"title": "🧱 Patchwork Facade Generator v0.8", "search": "🔍 Search marketplaces", "wall": "Wall Opening", "matrix": "📋 Procurement Matrix & Layout", "fill": "Filler Panel"},
+    "🇫🇷 FR": {"title": "🧱 Générateur de Façade v0.8", "search": "🔍 Chercher les marchés", "wall": "Ouverture du mur", "matrix": "📋 Matrice d'approvisionnement", "fill": "Panneau de remplissage"},
+    "🇮🇹 IT": {"title": "🧱 Generatore di Facciate v0.8", "search": "🔍 Cerca mercati", "wall": "Apertura del muro", "matrix": "📋 Matrice di approvvigionamento", "fill": "Pannello di riempimento"},
+    "🇨🇭 RM": {"title": "🧱 Generatur da Façadas v0.8", "search": "🔍 Tschertgar martgads", "wall": "Avertura da paraid", "matrix": "📋 Matrix da material", "fill": "Panel da rimplazzar"},
+    "🇧🇬 BG": {"title": "🧱 Генератор на фасади v0.8", "search": "🔍 Търсене в пазари", "wall": "Отвор на стената", "matrix": "📋 Матрица за доставки", "fill": "Панел за пълнеж"},
+    "🇮🇱 HE": {"title": "🧱 מחולל חזיתות טלאים v0.8", "search": "🔍 חפש בשווקים", "wall": "פתח קיר", "matrix": "📋 מטריצת רכש ופריסה", "fill": "פאנל מילוי"},
+    "🇯🇵 JA": {"title": "🧱 パッチワークファサードジェネレーター v0.8", "search": "🔍 市場を検索", "wall": "壁の開口部", "matrix": "📋 調達マトリックスとレイアウト", "fill": "フィラーパネル"}
 }
 
-lang_choice = st.radio("Sprache / Language:", list(LANG_DICT.keys())[:3], horizontal=True)
+lang_choice = st.radio("Sprache / Language:", list(LANG_DICT.keys()), horizontal=True)
 T = LANG_DICT[lang_choice]
 
 st.title(T["title"])
@@ -53,11 +57,10 @@ def harvest_materials(land, plz, use_reuse, use_new):
                                 'price': price, 'source': res['title'][:30] + '...', 
                                 'condition': condition, 'link': res['href']
                             })
-                            # Sichtbarkeit als Boolean (True/False) für die Layer-Logik!
                             st.session_state['item_states'][item_id] = {'visible': True, 'force': False}
         except Exception: pass 
             
-    if len(materials) < 3: # Fallback, falls Suche leer bleibt
+    if len(materials) < 3: 
         fallback = [(1200, 1400, "Re-Use", 85.0), (2000, 2100, "Neu", 350.0), (800, 600, "Re-Use", 40.0)]
         for w, h, cond, pr in fallback * 5:
             if not use_new and cond == "Neu": continue
@@ -127,18 +130,10 @@ def calculate_gaps(wall_w, wall_h, placed, step=50):
                 if cw > 0 and ch > 0:
                     gaps.append({
                         'id': uuid.uuid4().hex, 'x': x*step, 'y': y*step, 'w': cw*step, 'h': ch*step, 
-                        'type': T["fill"], 'color': '#ff4d4d', 'price': 0.0, # Preis 0 für Zuschnitt
+                        'type': T["fill"], 'color': '#ff4d4d', 'price': 0.0,
                         'source': 'Plattenmaterial', 'condition': 'Neu', 'link': ''
                     })
     return gaps
-
-# --- STATS BERECHNUNG FUNKTION ---
-def get_stats(wall_w, wall_h, placed):
-    total_price = sum(p['price'] for p in placed)
-    total_area_m2 = (wall_w * wall_height) / 1000000
-    win_area_m2 = sum((p['w'] * p['h'])/1000000 for p in placed)
-    win_pct = (win_area_m2 / total_area_m2 * 100) if total_area_m2 > 0 else 0
-    return total_price, win_area_m2, win_pct
 
 # --- UI: SIDEBAR ---
 with st.sidebar:
@@ -146,7 +141,6 @@ with st.sidebar:
     land = st.selectbox("Land / Country", ["Deutschland", "Österreich", "Schweiz", "Liechtenstein"])
     plz = st.text_input("PLZ / Zip", "10115")
     
-    # NEU: Zwei Checkboxen für detaillierte Kontrolle
     use_reuse = st.checkbox("🔄 Gebrauchte Fenster (Re-Use)", value=True)
     use_new = st.checkbox("🆕 Fabrikneue Fenster", value=False)
     
@@ -158,10 +152,8 @@ with st.sidebar:
 
     st.divider()
     
-    # NEU: STATS IMMER SICHTBAR IN DER SIDEBAR (Wenn geladen)
     if st.session_state['is_loaded']:
         st.header("📊 Kalkulation")
-        # Wir berechnen die Stats später im Main-Code, zeigen sie aber hier an (Streamlit Magic)
         stats_container = st.empty()
         st.divider()
 
@@ -182,7 +174,7 @@ with st.sidebar:
 if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
     total_inventory = st.session_state['custom_windows'] + st.session_state['inventory']
     
-    # Filtere versteckte Items (Photoshop-Layer Logik)
+    # Pack-Algorithmus bekommt NUR sichtbare Fenster
     usable_inventory = [item for item in total_inventory if st.session_state['item_states'].get(item['id'], {}).get('visible') == True]
     
     col1, col2 = st.columns([1, 3])
@@ -193,16 +185,19 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         if st.button("🎲 Neu würfeln / Shuffle"): pass 
 
     with col2:
-        # Algorithmus & Gaps
         placed = pack_mondrian_cluster(wall_width, wall_height, usable_inventory)
         gaps = calculate_gaps(wall_width, wall_height, placed, step=50 if wall_width <= 6000 else 100)
         
-        # Stats berechnen und in der Sidebar (rückwirkend) anzeigen
-        total_price, win_area_m2, win_pct = get_stats(wall_width, wall_height, placed)
-        stats_container.markdown(f"### 💶 Gesamtpreis:\n## **{total_price:.2f} €**")
-        stats_container.markdown(f"**Fensterfläche:** {win_area_m2:.2f} m²<br>*(Entspricht {win_pct:.1f}% der Wand)*", unsafe_allow_html=True)
+        # Stats berechnen
+        total_price = sum(p['price'] for p in placed)
+        wall_area_m2 = (wall_width * wall_height) / 1000000
+        win_area_m2 = sum((p['w'] * p['h'])/1000000 for p in placed)
+        win_pct = (win_area_m2 / wall_area_m2 * 100) if wall_area_m2 > 0 else 0
         
-        # Zeichnen
+        # Sidebar Stats updaten (Wandfläche hinzugefügt)
+        stats_container.markdown(f"### 💶 Fenster: **{total_price:.2f} €**")
+        stats_container.markdown(f"**Wandöffnung:** {wall_area_m2:.2f} m²<br>**Fensterfläche:** {win_area_m2:.2f} m²<br>*(Füllgrad: {win_pct:.1f}%)*", unsafe_allow_html=True)
+        
         fig, ax = plt.subplots(figsize=(12, 8)) 
         ax.add_patch(patches.Rectangle((0, 0), wall_width, wall_height, facecolor='#ffffff', edgecolor='black', linewidth=3))
         
@@ -210,9 +205,8 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         
         for g in gaps:
             ax.add_patch(patches.Rectangle((g['x'], g['y']), g['w'], g['h'], facecolor=g['color'], edgecolor='darkred', linewidth=1, alpha=0.7))
-            # Beschriftung der roten Paneele mit Quadratmetern!
             g_area = (g['w'] * g['h']) / 1000000
-            if g['w'] >= 400 and g['h'] >= 400: # Nur bei großen Gaps Text anzeigen
+            if g['w'] >= 400 and g['h'] >= 400: 
                 ax.text(g['x'] + g['w']/2, g['y'] + g['h']/2, f"{g_area:.2f} m²", ha='center', va='center', fontsize=6, color='white')
             
         for i, item in enumerate(placed):
@@ -227,23 +221,24 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
     
     df_data = []
     
-    # 1. Fenster zur Matrix
+    # 1. ALLE Fenster zur Matrix (auch die ausgeblendeten!)
     for item in total_inventory:
         state = st.session_state['item_states'].get(item['id'], {'visible': True, 'force': False})
         area_m2 = (item['w'] * item['h']) / 1000000
         
         pos_label, status = "", ""
-        if item['id'] in placed_ids:
+        if not state['visible']:
+            status = "🙈 Versteckt"
+            pos_label = "-"
+        elif item['id'] in placed_ids:
             pos_label = f"P{placed_ids.index(item['id']) + 1}"
             status = "✅ Platziert"
-        elif not state['visible']:
-            status = "🙈 Versteckt"
         else:
             status = "❌ Passt nicht"
 
         df_data.append({
             "id": item['id'],
-            "👁️ Ein/Aus": state['visible'], # Das ist unser "Photoshop Layer Button"
+            "👁️ Ein/Aus": state['visible'], 
             "⭐ Zwingen": state['force'],
             "Typ": item['type'],
             "Pos": pos_label,
@@ -251,25 +246,16 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
             "Maße (BxH)": f"{item['w']} x {item['h']}",
             "Fläche (m²)": f"{area_m2:.2f}",
             "Herkunft": item['source'],
-            "Preis": f"{item['price']:.2f} €", # Als String formatiert
+            "Preis": f"{item['price']:.2f} €", 
             "Link": item['link']
         })
         
-    # 2. Gaps (Zuschnitte) zur Matrix
     for g in gaps:
         area_m2 = (g['w'] * g['h']) / 1000000
         df_data.append({
-            "id": g['id'], 
-            "👁️ Ein/Aus": True, 
-            "⭐ Zwingen": False,
-            "Typ": g['type'], 
-            "Pos": "Gap", 
-            "Status": "⚠️ Benötigt", 
-            "Maße (BxH)": f"{g['w']} x {g['h']}", 
-            "Fläche (m²)": f"{area_m2:.2f}", 
-            "Herkunft": g['source'], 
-            "Preis": "-", # Kein Preis für Zuschnitte
-            "Link": ""
+            "id": g['id'], "👁️ Ein/Aus": True, "⭐ Zwingen": False, "Typ": g['type'], 
+            "Pos": "Gap", "Status": "⚠️ Benötigt", "Maße (BxH)": f"{g['w']} x {g['h']}", 
+            "Fläche (m²)": f"{area_m2:.2f}", "Herkunft": g['source'], "Preis": "-", "Link": ""
         })
         
     df = pd.DataFrame(df_data)
@@ -277,6 +263,7 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
     def highlight_rows(row):
         if '✅' in str(row['Status']): return ['background-color: rgba(40, 167, 69, 0.2)'] * len(row)
         if '⚠️' in str(row['Status']): return ['background-color: rgba(255, 0, 0, 0.15)'] * len(row)
+        if '🙈' in str(row['Status']): return ['background-color: rgba(128, 128, 128, 0.2); color: gray'] * len(row)
         return [''] * len(row)
         
     styled_df = df.style.apply(highlight_rows, axis=1)
@@ -285,7 +272,7 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         styled_df, 
         column_config={
             "id": None, 
-            "👁️ Ein/Aus": st.column_config.CheckboxColumn("👁️ Layer", help="Klick = Fenster wie in Photoshop ein/ausblenden"),
+            "👁️ Ein/Aus": st.column_config.CheckboxColumn("👁️ Layer", help="Haken raus = aus dem Bild ausblenden"),
             "⭐ Zwingen": st.column_config.CheckboxColumn("⭐ Priorität"),
             "Link": st.column_config.LinkColumn("🛒 Shop", display_text="Link 🔗")
         },
@@ -293,11 +280,9 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
         hide_index=True, use_container_width=True, key="matrix_editor"
     )
     
-    # Stats unter der Matrix anzeigen
     st.markdown(f"### 💶 Gesamtpreis Fenster: **{total_price:.2f} €**")
-    st.markdown(f"**Gesamtfläche Fenster:** {win_area_m2:.2f} m² ({win_pct:.1f}%)")
+    st.markdown(f"**Gesamtfläche Fenster:** {win_area_m2:.2f} m² | **Wandfläche:** {wall_area_m2:.2f} m²")
     
-    # Klicks in der Tabelle verarbeiten
     changes_made = False
     for idx, row in edited_df.iterrows():
         item_id = row['id']
@@ -305,7 +290,6 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
             old_vis = st.session_state['item_states'][item_id]['visible']
             old_frc = st.session_state['item_states'][item_id]['force']
             
-            # Hat der User die Checkbox geklickt?
             if row['👁️ Ein/Aus'] != old_vis or row['⭐ Zwingen'] != old_frc:
                 st.session_state['item_states'][item_id]['visible'] = row['👁️ Ein/Aus']
                 st.session_state['item_states'][item_id]['force'] = row['⭐ Zwingen']
