@@ -191,4 +191,34 @@ if st.session_state['is_loaded'] or len(st.session_state['custom_windows']) > 0:
 
     # --- MATRIX MIT KLICKBAREN LINKS ---
     st.subheader("📋 Beschaffungs-Matrix")
-    if len(placed) >
+    if len(placed) > 0:
+        df_data = []
+        total_price = 0
+        for i, p in enumerate(placed):
+            df_data.append({
+                "Pos": i+1,
+                "Zustand": p['condition'],
+                "Maße (BxH)": f"{p['w']} x {p['h']}",
+                "Herkunft / Titel": p['source'],
+                "Preis (€)": p['price'],
+                "Link": p['link']
+            })
+            total_price += p['price']
+            
+        df = pd.DataFrame(df_data)
+        
+        # Streamlit Column Config macht die Links klickbar!
+        st.dataframe(
+            df, 
+            column_config={
+                "Link": st.column_config.LinkColumn("🛒 Direkt zum Shop", display_text="Ansehen 🔗"),
+                "Preis (€)": st.column_config.NumberColumn("Preis (€)", format="%.2f €")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+        
+        st.markdown(f"### 💶 Gesamtpreis der verwendeten Fenster: **{total_price:.2f} €**")
+
+else:
+    st.info("👈 Bitte wähle dein Land & PLZ und starte die Marktplatz-Suche!")
